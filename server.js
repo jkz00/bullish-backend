@@ -9,9 +9,15 @@ require('dotenv').config();
 const app = express();
 const db = new sqlite3.Database(process.env.DATABASE_URL || path.resolve(__dirname, 'db.sqlite'));
 
-app.use(cors({
-  origin: ['http://localhost:3000', 'https://bullish-bar.vercel.app']
-}));
+const corsOptions = {
+  origin: ['http://localhost:3000', 'https://bullish-bar.vercel.app'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  allowedHeaders: ['Content-Type', 'Authorization']
+};
+
+app.use(cors(corsOptions));
+app.options('*', cors(corsOptions)); // enable pre-flight
+
 app.use(bodyParser.json());
 
 db.serialize(() => {
