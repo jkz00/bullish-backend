@@ -3,6 +3,7 @@ const { Sequelize, DataTypes } = require('sequelize');
 const bodyParser = require('body-parser');
 const cors = require('cors');
 require('dotenv').config();
+import pg from "pg"
 
 const app = express();
 
