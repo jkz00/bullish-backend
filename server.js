@@ -6,20 +6,23 @@ require('dotenv').config();
 
 const app = express();
 
+// Configurazione di Sequelize per PostgreSQL
 const sequelize = new Sequelize(process.env.DATABASE_URL, {
   dialect: 'postgres',
   dialectOptions: {
     ssl: {
       require: true,
-      rejectUnauthorized: false // Per evitare errori con certificati self-signed
+      rejectUnauthorized: false // Necessario per evitare errori con certificati self-signed
     }
   }
 });
 
+// Autenticazione alla connessione del database
 sequelize.authenticate()
   .then(() => console.log('Connected to Database'))
   .catch(err => console.error('Unable to connect to the database:', err));
 
+// Definizione del modello 'Sale'
 const Sale = sequelize.define('Sale', {
   drink: {
     type: DataTypes.STRING,
@@ -31,6 +34,7 @@ const Sale = sequelize.define('Sale', {
   }
 });
 
+// Sincronizzazione del modello con il database
 sequelize.sync();
 
 app.use(cors({
@@ -38,6 +42,7 @@ app.use(cors({
 }));
 app.use(bodyParser.json());
 
+// Rotte per l'applicazione
 app.post('/sales', async (req, res) => {
   const { drink } = req.body;
   const currentTime = new Date().toISOString();
