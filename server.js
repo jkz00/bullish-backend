@@ -1,13 +1,13 @@
 const express = require('express');
-const sqlite3 = require('sqlite3').verbose();
+const betterSqlite3 = require('better-sqlite3');
 const bodyParser = require('body-parser');
 const cors = require('cors');
-const fs = require('fs');
 const path = require('path');
 require('dotenv').config();
 
 const app = express();
-const db = new sqlite3.Database(process.env.DATABASE_URL || path.resolve(__dirname, 'db.sqlite'));
+const dbPath = process.env.DATABASE_URL || path.resolve(__dirname, 'db.sqlite');
+const db = betterSqlite3(dbPath);
 
 const corsOptions = {
   origin: ['http://localhost:3000', 'https://bullish-bar.vercel.app'],
@@ -16,41 +16,34 @@ const corsOptions = {
 };
 
 app.use(cors(corsOptions));
-app.options('*', cors(corsOptions)); // enable pre-flight
+app.options('*', cors(corsOptions));
 
 app.use(bodyParser.json());
 
-db.serialize(() => {
-  db.run(`CREATE TABLE IF NOT EXISTS sales (
+db.exec(`
+  CREATE TABLE IF NOT EXISTS sales (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     drink TEXT,
     time TEXT
-  )`);
-});
+  )
+`);
 
 app.post('/sales', (req, res) => {
   const { drink } = req.body;
   const currentTime = new Date().toISOString();
-  db.run(`INSERT INTO sales (drink, time) VALUES (?, ?)`, [drink, currentTime], function(err) {
-    if (err) {
-      return res.status(500).send(err.message);
-    }
-    res.status(200).send({ id: this.lastID, drink, time: currentTime });
-  });
+  const stmt = db.prepare('INSERT INTO sales (drink, time) VALUES (?, ?)');
+  const info = stmt.run(drink, currentTime);
+  res.status(200).send({ id: info.lastInsertRowid, drink, time: currentTime });
 });
 
 app.get('/sales', (req, res) => {
-  db.all(`SELECT * FROM sales`, [], (err, rows) => {
-    if (err) {
-      return res.status(500).send(err.message);
-    }
-    res.status(200).json(rows);
-  });
+  const stmt = db.prepare('SELECT * FROM sales');
+  const rows = stmt.all();
+  res.status(200).json(rows);
 });
 
 app.get('/export', (req, res) => {
-  const filePath = path.resolve(__dirname, process.env.DATABASE_URL || 'db.sqlite');
-  res.download(filePath, 'sales_data.sqlite', (err) => {
+  res.download(dbPath, 'sales_data.sqlite', (err) => {
     if (err) {
       return res.status(500).send(err.message);
     }
@@ -58,12 +51,9 @@ app.get('/export', (req, res) => {
 });
 
 app.delete('/clear', (req, res) => {
-  db.run(`DELETE FROM sales`, [], function(err) {
-    if (err) {
-      return res.status(500).send(err.message);
-    }
-    res.status(200).send({ message: 'Database cleared' });
-  });
+  const stmt = db.prepare('DELETE FROM sales');
+  stmt.run();
+  res.status(200).send({ message: 'Database cleared' });
 });
 
 const PORT = process.env.PORT || 5000;
